@@ -1,0 +1,146 @@
+name: brew test-bot
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions: {}
+
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+
+env:
+  HOMEBREW_NO_AUTO_UPDATE: "1"
+  BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+  HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pull-requests: read
+    steps:
+      - name: Set up Homebrew
+        id: homebrew
+        uses: Homebrew/actions/setup-homebrew@c262868c096d909fc278daa87ed9772967331ea3 # 2026.11.02.1
+      - name: Cache Homebrew Bundler RubyGems
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.homebrew.outputs.gems-path }}
+          key: syntax-rubygems-${{ steps.homebrew.outputs.gems-hash }}
+          restore-keys: syntax-rubygems-
+      - run: brew test-bot --only-tap-syntax --tap=0xsct/tap
+      - name: Install CI-local Minitest and run helper regressions
+        run: |
+          portable_ruby=$(brew ruby -e 'require "rbconfig"; puts RbConfig.ruby')
+          "$portable_ruby" -S gem install minitest --version 6.1.0 --install-dir "$RUNNER_TEMP/tap-ci-gems" --no-document
+          gem_libs=()
+          for lib in "$RUNNER_TEMP/tap-ci-gems"/gems/*/lib; do
+            gem_libs+=("-I$lib")
+          done
+          brew ruby -- "${gem_libs[@]}" .github/scripts/tap_ci_test.rb
+      - run: brew ruby .github/scripts/gstreamer_development_test.rb
+
+  native:
+    name: native (${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: xcode-27
+            major: 27
+          - arch: x86_64
+            runner: macos-26-intel
+            major: 26
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      pull-requests: read
+    env:
+      HOMEBREW_MAKE_JOBS: "2"
+      CMAKE_BUILD_PARALLEL_LEVEL: "2"
+      CTEST_PARALLEL_LEVEL: "2"
+      HOMEBREW_DEVELOPER: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+      HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
+      HOMEBREW_NO_AUTOREMOVE: "1"
+    steps:
+      - name: Assert native architecture and macOS
+        env:
+          EXPECTED_ARCH: ${{ matrix.arch }}
+          EXPECTED_MAJOR: ${{ matrix.major }}
+        run: |
+          [[ "$(uname -m)" == "$EXPECTED_ARCH" ]]
+          version=$(sw_vers -productVersion)
+          [[ "${version%%.*}" == "$EXPECTED_MAJOR" ]]
+      - name: Set up Homebrew
+        id: homebrew
+        uses: Homebrew/actions/setup-homebrew@c262868c096d909fc278daa87ed9772967331ea3 # 2026.11.02.1
+      - name: Cache Homebrew Bundler RubyGems
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.homebrew.outputs.gems-path }}
+          key: ${{ matrix.arch }}-rubygems-${{ steps.homebrew.outputs.gems-hash }}
+          restore-keys: ${{ matrix.arch }}-rubygems-
+      - name: Validate changed remote cask downloads
+        run: |
+          base="$BASE_SHA"
+          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+            base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          fi
+          casks=$(brew ruby .github/scripts/tap_ci.rb remote-casks "$base" "$HEAD_SHA")
+          if [[ -n "$casks" ]]; then
+            IFS=',' read -r -a names <<< "$casks"
+            for name in "${names[@]}"; do
+              brew fetch --cask "0xsct/tap/$name"
+            done
+          fi
+      - name: Select complete source change range
+        id: selected
+        env:
+          NATIVE_ARCH: ${{ matrix.arch }}
+        run: |
+          base="$BASE_SHA"
+          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+            base=$(git merge-base "$BASE_SHA" "$HEAD_SHA")
+          fi
+          formulae=$(brew ruby .github/scripts/tap_ci.rb changed-formulae "$base" "$HEAD_SHA" "$NATIVE_ARCH")
+          echo "formulae=$formulae" >> "$GITHUB_OUTPUT"
+      - name: Bootstrap dependencies and build tested native tap bottles
+        if: steps.selected.outputs.formulae != ''
+        env:
+          TESTING_FORMULAE: ${{ steps.selected.outputs.formulae }}
+          NATIVE_ARCH: ${{ matrix.arch }}
+        run: brew ruby .github/scripts/tap_ci.rb build-native "$NATIVE_ARCH" "$TESTING_FORMULAE"
+      - name: Test eligible affected dependents
+        if: steps.selected.outputs.formulae != ''
+        env:
+          TESTING_FORMULAE: ${{ steps.selected.outputs.formulae }}
+        run: brew test-bot --only-formulae-dependents --tap=0xsct/tap --testing-formulae="$TESTING_FORMULAE" --tested-formulae="$TESTING_FORMULAE"
+      - name: Require every reviewed native bottle pair
+        if: success() && steps.selected.outputs.formulae != ''
+        env:
+          TESTING_FORMULAE: ${{ steps.selected.outputs.formulae }}
+          NATIVE_ARCH: ${{ matrix.arch }}
+        run: brew ruby .github/scripts/tap_ci.rb verify-native "$NATIVE_ARCH" "$TESTING_FORMULAE"
+      - name: Upload exact run attempt bottles
+        if: success() && steps.selected.outputs.formulae != '' && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: bottles_${{ matrix.arch }}_${{ github.run_id }}_${{ github.run_attempt }}
+          path: |
+            *.bottle*.tar.gz
+            *.bottle.json
+          if-no-files-found: error
