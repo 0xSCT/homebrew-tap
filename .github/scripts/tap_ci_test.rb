@@ -13,6 +13,19 @@ require_relative "tap_ci"
 class TapCITest < Minitest::Test
   SCRIPT = File.expand_path("tap_ci.rb", __dir__).freeze
 
+  def test_homebrew_subprocess_survives_sanitized_path
+    previous_path = ENV.fetch("PATH")
+    ENV["PATH"] = "/usr/bin:/bin:/usr/sbin:/sbin"
+    begin
+      output = TapCI.command("brew", "--version")
+    rescue Errno::ENOENT => e
+      flunk "Homebrew subprocess must use its absolute executable: #{e.message}"
+    end
+    assert_match(/\AHomebrew \d/, output)
+  ensure
+    ENV["PATH"] = previous_path
+  end
+
   def test_changed_formulae_covers_every_commit_in_the_push
     Dir.mktmpdir("tap-ci-test-", File.expand_path("../..", __dir__)) do |repository|
       git = lambda do |*args|

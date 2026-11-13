@@ -7,8 +7,7 @@ require "cask/pkg"
 require "tmpdir"
 command_result = Struct.new(:stdout, :plist, keyword_init: true)
 
-cask_path = Pathname.new(__dir__).join("../../Casks/sct-gstreamer-development.rb").expand_path
-cask = Cask::CaskLoader.load(cask_path)
+cask = Cask::CaskLoader.load("0xsct/tap/sct-gstreamer-development")
 script = cask.artifacts.find { |artifact| artifact.is_a?(Cask::Artifact::Uninstall) }.directives.fetch(:script)
 code = script.fetch(:args).last
 

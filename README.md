@@ -277,6 +277,8 @@ GitHub publication and pushing metadata are not one atomic operation; a late pus
 - Dependabot checks GitHub Action pins weekly. Package updates stay reviewed.
 
 Local check commands use Homebrew's Ruby, not macOS's older system Ruby:
+The SDK regression resolves its cask by fully qualified name, so the current tap checkout must be registered with Homebrew.
+CI subprocesses use Homebrew's absolute executable because `brew ruby` removes its prefix from `PATH`.
 
 ```sh
 brew style Formula/*.rb Casks/*.rb .github/scripts/*.rb
