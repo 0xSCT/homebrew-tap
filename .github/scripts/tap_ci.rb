@@ -14,7 +14,12 @@ module TapCI
 
   module_function
 
+  def brew_executable
+    HOMEBREW_BREW_FILE.to_s
+  end
+
   def command(*args, repository: Dir.pwd)
+    args[0] = brew_executable if args.first == "brew"
     stdout, stderr, status = Open3.capture3(*args, chdir: repository)
     raise ArgumentError, "Command failed: #{args.first}: #{stderr}" unless status.success?
 
@@ -151,7 +156,9 @@ module TapCI
     metadata = formulae.to_h { |formula| [formula.fetch("name"), formula] }
     Dir.chdir(repository) do
       native_formulae(names: names, formulae: formulae).each do |name|
-        native_commands(metadata.fetch(name)).each { |args| system(*args, exception: true) }
+        native_commands(metadata.fetch(name)).each do |args|
+          system(brew_executable, *args.drop(1), exception: true)
+        end
       end
     end
   end
@@ -453,7 +460,7 @@ module TapCI
     ENV["GITHUB_OUTPUT"] = output
     begin
       # pr-pull downloads once and cherry-picks, but --no-upload creates no bottle commit.
-      system("brew", "pr-pull", "--no-upload", "--retain-bottle-dir", "--tap=#{TAP}",
+      system(brew_executable, "pr-pull", "--no-upload", "--retain-bottle-dir", "--tap=#{TAP}",
              "--head-sha=#{expected_sha}", "--artifact-pattern=#{pattern}", pull_request_number, exception: true)
     ensure
       ENV["GITHUB_OUTPUT"] = previous_output
@@ -479,7 +486,7 @@ module TapCI
     raise ArgumentError, "main changed during publication" if final_branch.dig("commit", "sha") != main_sha
 
     unless expected.empty?
-      Dir.chdir(bottle_path) { system("brew", "pr-upload", exception: true) }
+      Dir.chdir(bottle_path) { system(brew_executable, "pr-upload", exception: true) }
       File.open(previous_output, "a") { |file| file.puts "bottle_path=#{bottle_path}" }
     end
     # A normal push rejects concurrent changes and branch policy; never force or bypass.
