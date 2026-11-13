@@ -1,0 +1,17 @@
+# macOS metadata.
+.DS_Store
+._*
+
+# Local builds and verification scratch.
+/.superpowers/
+/build/
+/tap-ci-*/
+/.github/scripts/task-4-receipts*/
+
+# Homebrew-generated bottle metadata and archives.
+/*.bottle.json
+/*.bottle*.tar.gz
+
+# Output created by the README consumer example.
+/imgui-consumer
+/imgui-consumer.cpp
