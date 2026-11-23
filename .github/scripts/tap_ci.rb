@@ -458,7 +458,7 @@ module TapCI
     verify_run!(pull_request:, expected_sha:,
                 selected_run: selected_run.merge("latest" => selected_run), architectures:)
     pattern = "bottles_{arm64,x86_64}_#{selected_run.fetch("id")}_#{selected_run.fetch("run_attempt")}"
-    output = File.join(ENV.fetch("RUNNER_TEMP"), "tap-pr-pull-output")
+    output = File.join(__dir__, "tap-pr-pull-output")
     File.write(output, "")
     previous_output = ENV.fetch("GITHUB_OUTPUT")
     ENV["GITHUB_OUTPUT"] = output
