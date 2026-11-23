@@ -169,7 +169,6 @@ module TapCI
     raise ArgumentError, "main branch required" if branch["name"] != "main"
     raise ArgumentError, "Unknown main branch policy" unless [true, false].include?(branch["protected"])
     raise ArgumentError, "Protected main branch" if branch["protected"]
-    raise ArgumentError, "Repository write permission required" if branch.dig("permissions", "push") != true
   end
 
   def verify_run!(pull_request:, expected_sha:, selected_run:, architectures:)
@@ -398,7 +397,6 @@ module TapCI
       break if page.fetch("jobs").length < 100
     end
     branch = api("branches/main")
-    branch["permissions"] = api("").fetch("permissions")
     [pull_request, run.merge("jobs" => jobs), branch]
   end
 
@@ -440,6 +438,9 @@ module TapCI
     if command("git", "rev-parse", "HEAD", repository:).strip != main_sha
       raise ArgumentError, "Trusted checkout is not current main"
     end
+
+    # Repository role flags do not describe GITHUB_TOKEN access; probe Git without changing remote refs.
+    command("git", "push", "--dry-run", "origin", "HEAD:refs/heads/main", repository:)
 
     command("git", "fetch", "origin", expected_sha, repository:)
     base = command("git", "merge-base", "origin/main", expected_sha, repository:).strip
@@ -487,6 +488,8 @@ module TapCI
     verify_run!(pull_request: final_request, expected_sha:,
                 selected_run: selected_run.merge("latest" => final_run), architectures:)
     raise ArgumentError, "main changed during publication" if final_branch.dig("commit", "sha") != main_sha
+
+    command("git", "push", "--dry-run", "origin", "HEAD:refs/heads/main", repository:)
 
     unless expected.empty?
       Dir.chdir(bottle_path) { system(brew_executable, "pr-upload", exception: true) }
