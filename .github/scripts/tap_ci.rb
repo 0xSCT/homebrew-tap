@@ -9,6 +9,8 @@ module TapCI
   TAP = "0xsct/tap"
   REPOSITORY = "0xsct/homebrew-tap"
   COMPILERS = %w[llvm-sct lldb-sct].freeze
+  # shortcut: compiler CI is paused after Intel cancellation; restore with a suitable runner and revision bumps.
+  COMPILER_CI_ENABLED = false
   RUNNERS = { "arm64" => "xcode-27", "x86_64" => "macos-26-intel" }.freeze
   GRAPHICS_TAGS = %w[arm64_golden_gate tahoe].freeze
 
@@ -66,7 +68,7 @@ module TapCI
   def platform_formulae(names, architecture)
     raise ArgumentError, "Unknown native architecture" unless RUNNERS.key?(architecture)
 
-    (architecture == "arm64") ? names - COMPILERS : names
+    (COMPILER_CI_ENABLED && architecture == "x86_64") ? names : names - COMPILERS
   end
 
   def repository_identity?(identity)
@@ -401,6 +403,7 @@ module TapCI
   end
 
   def expected_bottles(names)
+    names = platform_formulae(names, "x86_64")
     require "formula"
 
     Formulary.clear_cache
