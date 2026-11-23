@@ -5,6 +5,12 @@ class Raygui < Formula
   sha256 "0f194c4a5e837c0930aca0b6315db45d00f76fa0052d841eea94598d390c39d6"
   license "Zlib"
 
+  bottle do
+    root_url "https://github.com/0xsct/homebrew-tap/releases/download/raygui-5.0"
+    sha256 cellar: :any_skip_relocation, arm64_golden_gate: "23207192eacfd1a9944e319589e951339ab966814dd8bc09725454ab4a0534fe"
+    sha256 cellar: :any_skip_relocation, tahoe:             "8a500994faf3cbe8aaa898cc5452ef415ba2d4442c457444c0d84b858fde76ae"
+  end
+
   depends_on "pkgconf" => :test
   depends_on "0xsct/tap/raylib-static"
   depends_on :macos
