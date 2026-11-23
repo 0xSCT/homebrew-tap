@@ -1,0 +1,2 @@
+inherit_from:
+  - https://raw.githubusercontent.com/Homebrew/brew/main/Library/.rubocop.yml
