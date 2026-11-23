@@ -5,6 +5,12 @@ class Imgui < Formula
   sha256 "f7bf6bc76e5d79d40d751096663e6c5d18daf08129dd52e7f7b09e4251c8eeee"
   license "MIT"
 
+  bottle do
+    root_url "https://github.com/0xsct/homebrew-tap/releases/download/imgui-1.93.0"
+    sha256 cellar: :any_skip_relocation, arm64_golden_gate: "16eec5d19e34b5a13d71add6bf93e3cbaa85083de8faf42189918b47404a84b9"
+    sha256 cellar: :any_skip_relocation, tahoe:             "dabd6e4335801baa6630aa83501acd811b07594866c3ad24b34c6aa7d783ea52"
+  end
+
   # Upstream ships no build system for the installed-library layout used by the
   # SCT builds (pkg-config modules imgui / imgui_impl_sdl2 / imgui_impl_opengl3,
   # same as the Linux cross toolchains). This formula compiles the core and the
