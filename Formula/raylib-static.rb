@@ -5,6 +5,12 @@ class RaylibStatic < Formula
   sha256 "df7a13129b1bec9e73a6962efff170beba310ee6eab8f94cd000b7316b4db5ee"
   license "Zlib"
 
+  bottle do
+    root_url "https://github.com/0xsct/homebrew-tap/releases/download/raylib-static-6.2"
+    sha256 cellar: :any_skip_relocation, arm64_golden_gate: "9dca5549b71a0be123cdb0a83ed9e3686312cdf550bf03257a744b48b941d5fa"
+    sha256 cellar: :any_skip_relocation, tahoe:             "22070170f517940562089a1b4e0a8fe0785855fd8edc028b3a9e5ea7bb88404d"
+  end
+
   keg_only "static-only build that would shadow raylib"
 
   depends_on "cmake" => :build
