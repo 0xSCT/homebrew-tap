@@ -11,6 +11,12 @@ class Sdl3Static < Formula
     strategy :github_releases
   end
 
+  bottle do
+    root_url "https://github.com/0xsct/homebrew-tap/releases/download/sdl3-static-3.4.20"
+    sha256 cellar: :any_skip_relocation, arm64_golden_gate: "f8e8d246e8c238fe4bfcdf10a2f415f03a6da74ac010a58ea6376b9000d5e773"
+    sha256 cellar: :any_skip_relocation, tahoe:             "dceb4ff2c70ce2f52ba451ad234c6896d733a18589046f2d2771b922267428d7"
+  end
+
   keg_only "static-only build that would shadow sdl3"
 
   depends_on "cmake" => :build
