@@ -11,6 +11,12 @@ class Sdl2Static < Formula
     strategy :github_releases
   end
 
+  bottle do
+    root_url "https://github.com/0xsct/homebrew-tap/releases/download/sdl2-static-2.32.10"
+    sha256 cellar: :any_skip_relocation, arm64_golden_gate: "e34de731b3ef85990617d2c6e34330b8b80d8a3a2b88fe59a0983e293dc5ce97"
+    sha256 cellar: :any_skip_relocation, tahoe:             "0dd736a2b6a851818cb9ab57de371ebda83ee1d7fcbcbf71154d7bedc8a41aa1"
+  end
+
   # Static-only native build; Homebrew core only ships sdl2-compat (SDL3 shim,
   # shared-only), which is useless for a fully static SDL2 link.
   keg_only "static-only build that would shadow sdl2/sdl2-compat"
